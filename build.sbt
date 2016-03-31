@@ -1,4 +1,4 @@
-name := "figaro-examples"
+name := "ros-figaro"
 
 version := "0.0.0"
 
