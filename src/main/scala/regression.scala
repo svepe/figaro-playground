@@ -13,12 +13,14 @@ object Regression {
     req: ros_figaro.RunRegression2Request,
     resp: ros_figaro.RunRegression2Response) {
 
+    Universe.createNew()
+
     val w0 = Normal(req.getPriorW0().getMean(), req.getPriorW0().getVariance());
     val w1 = Normal(req.getPriorW1().getMean(), req.getPriorW1().getVariance());
 
     // Specifying the Model, given the parameters.
-    class y(x1: Double, w0: AtomicNormal, w1: AtomicNormal) {
-      val mu = Apply(w0, w1, (d0: Double, d1: Double) => d0 + d1 * x1)
+    class y(x1: Double, t0: AtomicNormal, t1: AtomicNormal) {
+      val mu = Apply(t0, t1, (d0: Double, d1: Double) => d0 + d1 * x1)
       val out = Normal(mu, 0.5)
     }
 
@@ -27,17 +29,12 @@ object Regression {
     var y_obs: Array[Double] = new Array[Double](5)
 
     // Specifying the training data
-    x1_obs(0) = -2.3381;
-    x1_obs(1) = 5.2566;
-    x1_obs(2) = 1.2564;
-    x1_obs(3) = -0.1092;
-    x1_obs(4) = 1.2380;
 
-    y_obs(0) = 2.9505;
-    y_obs(1) = -4.2942;
-    y_obs(2) = 6.6941;
-    y_obs(3) = 7.7105;
-    y_obs(4) = 6.3987;
+    x1_obs(0) = 0; y_obs(0) = 0;
+    x1_obs(1) = 2; y_obs(1) = 2;
+    x1_obs(2) = 3; y_obs(2) = 3;
+    x1_obs(3) = 4; y_obs(3) = 4;
+    x1_obs(4) = 5; y_obs(4) = 5;
 
     // Intializing array to hold observation objects
     var y_inst: Array[y] = new Array[y](5)
@@ -49,14 +46,12 @@ object Regression {
 
     //Setting up the inference
     val imp = Importance(5000, w0, w1)
-    imp.start; imp.stop
+    imp.start
 
-    resp.getPosteriorW0().setMean(imp.expectation(w0, (d: Double) => d))
-    resp.getPosteriorW1().setMean(imp.expectation(w1, (d: Double) => d))
-    // resp.getPosteriorW0().setVariance(imp.expectation(w0,
-    //   (d: Double) => Math.pow(d - resp.getPosteriorW0().getMean(), 2)))
-    // resp.getPosteriorW0().setVariance(imp.expectation(w1,
-    //   (d: Double) => Math.pow(d - resp.getPosteriorW1().getMean(), 2)))
+    resp.getPosteriorW0().setMean(imp.mean(w0))
+    resp.getPosteriorW1().setMean(imp.mean(w1))
+    resp.getPosteriorW0().setVariance(imp.variance(w0))
+    resp.getPosteriorW1().setVariance(imp.variance(w1))
 
     imp.kill
   }
@@ -88,17 +83,24 @@ object Regression {
     var y_obs: Array[Double] = new Array[Double](5)
 
     // Specifying the training data
-    x1_obs(0) = -2.3381;
-    x1_obs(1) = 5.2566;
-    x1_obs(2) = 1.2564;
-    x1_obs(3) = -0.1092;
-    x1_obs(4) = 1.2380;
+    // x1_obs(0) = -2.3381; y_obs(0) = 2.9505;
+    // x1_obs(1) = 5.2566; y_obs(1) = -4.2942;
+    // x1_obs(2) = 1.2564; y_obs(2) = 6.6941;
+    // x1_obs(3) = -0.1092; y_obs(3) = 7.7105;
+    // x1_obs(4) = 1.2380; y_obs(4) = 6.3987;
 
-    y_obs(0) = 2.9505;
-    y_obs(1) = -4.2942;
-    y_obs(2) = 6.6941;
-    y_obs(3) = 7.7105;
-    y_obs(4) = 6.3987;
+
+    x1_obs(0) = 0; y_obs(0) = 0;
+    x1_obs(1) = 2; y_obs(1) = 2;
+    x1_obs(2) = 3; y_obs(2) = 3;
+    x1_obs(3) = 4; y_obs(3) = 4;
+    x1_obs(4) = 5; y_obs(4) = 5;
+
+
+
+
+
+
 
     // Intializing array to hold observation objects
     var y_inst: Array[y] = new Array[y](5)

@@ -2,6 +2,8 @@
 
 import rospy
 from std_msgs.msg import String
+from ros_figaro.msg import *
+from ros_figaro.srv import *
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,16 +11,31 @@ import matplotlib.pyplot as plt
 class RegressionPlot:
 
   def __init__(self):
-    rospy.init_node('regression')
+    rospy.init_node('regression_plot')
     self.data_pub = rospy.Publisher('~data', String, queue_size=10)
     self.data = np.empty(shape=(0, 2))
-
-
-
+    self.run_regression = rospy.ServiceProxy('/regression/run', RunRegression2)
   def onclick(self, event):
       # print 'button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(
       #   event.button, event.x, event.y, event.xdata, event.ydata)
       self.data = np.append(self.data, [[event.xdata, event.ydata]], axis = 0)
+
+      req = RunRegression2Request()
+      req.prior_w0.mean = 0;
+      req.prior_w0.variance = 5;
+      req.prior_w1.mean = 0;
+      req.prior_w1.variance = 5;
+
+      for i in xrange(self.data.shape[0]):
+        dp = DataPoint2()
+        dp.x = self.data[i, 0]
+        dp.y = self.data[i, 1]
+        req.observations.append(dp)
+
+      resp = self.run_regression(req)
+
+      print resp
+
 
   def loop(self):
       plt.ion()
