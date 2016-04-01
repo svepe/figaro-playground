@@ -1,0 +1,6 @@
+ros_figaro/Normal2 prior_w0
+ros_figaro/Normal2 prior_w1
+ros_figaro/DataPoint2[] observations
+---
+ros_figaro/Normal2 posterior_w0
+ros_figaro/Normal2 posterior_w1
