@@ -52,6 +52,7 @@ add_message_files(
   FILES
   Normal2.msg
   DataPoint2.msg
+  ImportanceSample.msg
 )
 
 ## Generate services in the 'srv' folder

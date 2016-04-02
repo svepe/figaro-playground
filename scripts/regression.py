@@ -7,6 +7,10 @@ from ros_figaro.srv import *
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
+import math
+import time
+
 
 class RegressionPlot:
 
@@ -15,40 +19,75 @@ class RegressionPlot:
     self.data_pub = rospy.Publisher('~data', String, queue_size=10)
     self.data = np.empty(shape=(0, 2))
     self.run_regression = rospy.ServiceProxy('/regression/run', RunRegression2)
+    self.w0 = Normal2()
+    self.w0.mean = 0
+    self.w0.variance = 1000
+
+    self.w1 = Normal2()
+    self.w1.mean = 0
+    self.w1.variance = 1000
+
   def onclick(self, event):
-      # print 'button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(
-      #   event.button, event.x, event.y, event.xdata, event.ydata)
-      self.data = np.append(self.data, [[event.xdata, event.ydata]], axis = 0)
+      if self.fig.axes[0] is not event.inaxes:
+        return
+
+      self.data = np.append(self.data, [[event.xdata, event.ydata]], axis=0)
 
       req = RunRegression2Request()
-      req.prior_w0.mean = 0;
-      req.prior_w0.variance = 5;
-      req.prior_w1.mean = 0;
-      req.prior_w1.variance = 5;
+      req.prior_w0.mean = self.w0.mean
+      req.prior_w0.variance = self.w0.variance
+      req.prior_w1.mean = self.w1.mean
+      req.prior_w1.variance = self.w1.variance
 
-      for i in xrange(self.data.shape[0]):
-        dp = DataPoint2()
-        dp.x = self.data[i, 0]
-        dp.y = self.data[i, 1]
-        req.observations.append(dp)
+      req.observation.x = self.data[-1, 0]
+      req.observation.y = self.data[-1, 1]
 
+      time1 = time.time()
       resp = self.run_regression(req)
+      time2 = time.time()
+      print 'Regression took %0.3f ms' % ((time2-time1)*1000.0)
 
-      print resp
+      self.w0.mean = resp.posterior_w0.mean
+      self.w0.variance = resp.posterior_w0.variance
+      self.w1.mean = resp.posterior_w1.mean
+      self.w1.variance = resp.posterior_w1.variance
 
+      print resp.samples_w0
 
   def loop(self):
       plt.ion()
-      plt.figure().canvas.mpl_connect('button_press_event', self.onclick)
+      self.fig = plt.figure()
+      self.fig.canvas.mpl_connect('button_press_event', self.onclick)
       while not rospy.is_shutdown():
         hello_str = "hello world %s" % rospy.get_time()
         # rospy.loginfo(hello_str)
         self.data_pub.publish(hello_str)
-
+        plt.subplot(2, 1, 1)
         plt.cla()
+        plt.title('Data')
+        plt.xlabel('x')
+        plt.ylabel('y')
         plt.gca().set_xlim([-10, 10])
         plt.gca().set_ylim([-10, 10])
         plt.scatter(self.data[:, 0], self.data[:, 1])
+        x = np.arange(-10, 10, 0.1)
+        y = self.w0.mean + self.w1.mean * x
+        plt.plot(x, y, 'r')
+
+        plt.subplot(2, 1, 2)
+        plt.cla()
+        plt.title('w0 + w1 * x')
+        plt.xlabel('w0')
+        plt.ylabel('w1')
+        pdf_x, pdf_y = np.meshgrid(
+          np.arange(-10, 10, 0.1), np.arange(-10, 10, 0.1))
+        pdf = mlab.bivariate_normal(
+          pdf_x, pdf_y,
+          math.sqrt(self.w0.variance), math.sqrt(self.w1.variance),
+          self.w0.mean, self.w1.mean, sigmaxy=0.0)
+        plt.contour(pdf_x, pdf_y, pdf)
+        plt.plot()
+
         plt.show()
         plt.pause(0.01)
 
