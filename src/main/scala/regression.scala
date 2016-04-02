@@ -50,13 +50,13 @@ object Regression {
     resp.setSamplesW1(new java.util.ArrayList[ros_figaro.ImportanceSample])
     for (i <- Range(0, samples.length)) {
 
-      val s = NodeConfiguration.newPrivate().getTopicMessageFactory().newFromType(ros_figaro.ImportanceSample._TYPE);
+      val s: ros_figaro.ImportanceSample = NodeConfiguration.newPrivate().getTopicMessageFactory().newFromType(ros_figaro.ImportanceSample._TYPE);
       s.setWeight(samples(i)._1)
-      s.setValue(samples(i)._2(w0))
+      s.setValue(samples(i)._2(w0).toDouble)
       resp.getSamplesW0().add(s)
 
       s.setWeight(samples(i)._1)
-      s.setValue(samples(i)._2(w1))
+      s.setValue(samples(i)._2(w1).toDouble)
       resp.getSamplesW0().add(s)
 
       println("weight: " + math.exp(samples(i)._1) + " w0: " + samples(i)._2(w0) + " w0: " + samples(i)._2(w0))
