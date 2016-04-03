@@ -39,7 +39,7 @@ object Regression {
     resp.getPosteriorW1().setVariance(imp.variance(w1))
 
     // (Double, Map[Element[_], Any])
-    val nsamples = 10
+    val nsamples = 1000
     val samples = new Array[imp.Sample](nsamples)
     // Intantiating observation objects for each training datapoint  and specfying the observations
     for (i <- Range(0, samples.length)) {
@@ -50,16 +50,17 @@ object Regression {
     resp.setSamplesW1(new java.util.ArrayList[ros_figaro.ImportanceSample])
     for (i <- Range(0, samples.length)) {
 
-      val s: ros_figaro.ImportanceSample = NodeConfiguration.newPrivate().getTopicMessageFactory().newFromType(ros_figaro.ImportanceSample._TYPE);
-      s.setWeight(samples(i)._1)
-      s.setValue(samples(i)._2(w0).toDouble)
-      resp.getSamplesW0().add(s)
+      val s0: ros_figaro.ImportanceSample = NodeConfiguration.newPrivate().getTopicMessageFactory().newFromType(ros_figaro.ImportanceSample._TYPE);
+      s0.setWeight(samples(i)._1)
+      s0.setValue(samples(i)._2(w0).asInstanceOf[Double])
+      resp.getSamplesW0().add(s0)
 
-      s.setWeight(samples(i)._1)
-      s.setValue(samples(i)._2(w1).toDouble)
-      resp.getSamplesW0().add(s)
+      val s1: ros_figaro.ImportanceSample = NodeConfiguration.newPrivate().getTopicMessageFactory().newFromType(ros_figaro.ImportanceSample._TYPE);
+      s1.setWeight(samples(i)._1)
+      s1.setValue(samples(i)._2(w1).asInstanceOf[Double])
+      resp.getSamplesW1().add(s1)
 
-      println("weight: " + math.exp(samples(i)._1) + " w0: " + samples(i)._2(w0) + " w0: " + samples(i)._2(w0))
+      // println("weight: " + math.exp(samples(i)._1) + " w0: " + samples(i)._2(w0) + " w1: " + samples(i)._2(w1))
     }
 
     imp.kill

@@ -27,6 +27,9 @@ class RegressionPlot:
     self.w1.mean = 0
     self.w1.variance = 1000
 
+    self.samples_w0 = []
+    self.samples_w1 = []
+
   def onclick(self, event):
       if self.fig.axes[0] is not event.inaxes:
         return
@@ -52,7 +55,9 @@ class RegressionPlot:
       self.w1.mean = resp.posterior_w1.mean
       self.w1.variance = resp.posterior_w1.variance
 
-      print resp.samples_w0
+      self.samples_w0 = resp.samples_w0
+      self.samples_w1 = resp.samples_w1
+
 
   def loop(self):
       plt.ion()
@@ -79,14 +84,27 @@ class RegressionPlot:
         plt.title('w0 + w1 * x')
         plt.xlabel('w0')
         plt.ylabel('w1')
+
+
+        plt.scatter(
+          np.asarray([w.value for w in self.samples_w0]),
+          np.asarray([w.value for w in self.samples_w1]),
+          c=np.asarray([-w.weight for w in self.samples_w0]),
+          cmap=plt.cm.get_cmap('RdYlBu'))
+
+
+        (xmin, xmax) = plt.gca().get_xlim()
+        (ymin, ymax) = plt.gca().get_ylim()
+
         pdf_x, pdf_y = np.meshgrid(
-          np.arange(-10, 10, 0.1), np.arange(-10, 10, 0.1))
+          np.arange(xmin, xmax, 0.1), np.arange(ymin, ymax, 0.1))
         pdf = mlab.bivariate_normal(
           pdf_x, pdf_y,
           math.sqrt(self.w0.variance), math.sqrt(self.w1.variance),
           self.w0.mean, self.w1.mean, sigmaxy=0.0)
         plt.contour(pdf_x, pdf_y, pdf)
-        plt.plot()
+        # plt.colorbar(plt.gca())
+
 
         plt.show()
         plt.pause(0.01)
