@@ -19,16 +19,27 @@ class RegressionPlot:
     self.data_pub = rospy.Publisher('~data', String, queue_size=10)
     self.data = np.empty(shape=(0, 2))
     self.run_regression = rospy.ServiceProxy('/regression/run', RunRegression2)
-    self.w0 = Normal2()
-    self.w0.mean = 0
-    self.w0.variance = 1000
 
-    self.w1 = Normal2()
-    self.w1.mean = 0
-    self.w1.variance = 1000
+    self.prior_w0 = Normal2()
+    self.prior_w0.mean = 0
+    self.prior_w0.variance = 1000
+
+    self.posterior_w0 = Normal2()
+    self.posterior_w0.mean = 0
+    self.posterior_w0.variance = 1000
+
+    self.prior_w1 = Normal2()
+    self.prior_w1.mean = 0
+    self.prior_w1.variance = 1000
+
+    self.posterior_w1 = Normal2()
+    self.posterior_w1.mean = 0
+    self.posterior_w1.variance = 1000
 
     self.samples_w0 = []
     self.samples_w1 = []
+
+    self.cbar = None
 
   def onclick(self, event):
       if self.fig.axes[0] is not event.inaxes:
@@ -37,10 +48,10 @@ class RegressionPlot:
       self.data = np.append(self.data, [[event.xdata, event.ydata]], axis=0)
 
       req = RunRegression2Request()
-      req.prior_w0.mean = self.w0.mean
-      req.prior_w0.variance = self.w0.variance
-      req.prior_w1.mean = self.w1.mean
-      req.prior_w1.variance = self.w1.variance
+      req.prior_w0.mean = self.posterior_w0.mean
+      req.prior_w0.variance = self.posterior_w0.variance
+      req.prior_w1.mean = self.posterior_w1.mean
+      req.prior_w1.variance = self.posterior_w1.variance
 
       req.observation.x = self.data[-1, 0]
       req.observation.y = self.data[-1, 1]
@@ -50,64 +61,99 @@ class RegressionPlot:
       time2 = time.time()
       print 'Regression took %0.3f ms' % ((time2-time1)*1000.0)
 
-      self.w0.mean = resp.posterior_w0.mean
-      self.w0.variance = resp.posterior_w0.variance
-      self.w1.mean = resp.posterior_w1.mean
-      self.w1.variance = resp.posterior_w1.variance
+      self.prior_w0.mean = self.posterior_w0.mean
+      self.prior_w0.variance = self.posterior_w0.variance
+      self.prior_w1.mean = self.posterior_w1.mean
+      self.prior_w1.variance = self.posterior_w1.variance
+
+      self.posterior_w0.mean = resp.posterior_w0.mean
+      self.posterior_w0.variance = resp.posterior_w0.variance
+      self.posterior_w1.mean = resp.posterior_w1.mean
+      self.posterior_w1.variance = resp.posterior_w1.variance
 
       self.samples_w0 = resp.samples_w0
       self.samples_w1 = resp.samples_w1
 
-
   def loop(self):
       plt.ion()
+
       self.fig = plt.figure()
       self.fig.canvas.mpl_connect('button_press_event', self.onclick)
       while not rospy.is_shutdown():
-        hello_str = "hello world %s" % rospy.get_time()
-        # rospy.loginfo(hello_str)
-        self.data_pub.publish(hello_str)
-        plt.subplot(2, 1, 1)
+
+        # Plot datapoints and fitted line
+        plt.subplot(3, 1, 1)
         plt.cla()
-        plt.title('Data')
+        plt.title('$w_0 + w_1 x$')
         plt.xlabel('x')
         plt.ylabel('y')
         plt.gca().set_xlim([-10, 10])
         plt.gca().set_ylim([-10, 10])
         plt.scatter(self.data[:, 0], self.data[:, 1])
         x = np.arange(-10, 10, 0.1)
-        y = self.w0.mean + self.w1.mean * x
+        y = self.posterior_w0.mean + self.posterior_w1.mean * x
         plt.plot(x, y, 'r')
 
-        plt.subplot(2, 1, 2)
+        # Plot prior and sampled weights
+        plt.subplot(3, 1, 2)
         plt.cla()
-        plt.title('w0 + w1 * x')
-        plt.xlabel('w0')
-        plt.ylabel('w1')
-
+        plt.title('Prior')
+        plt.xlabel('$w_0$')
+        plt.ylabel('$w_1$')
 
         plt.scatter(
           np.asarray([w.value for w in self.samples_w0]),
           np.asarray([w.value for w in self.samples_w1]),
-          c=np.asarray([-w.weight for w in self.samples_w0]),
-          cmap=plt.cm.get_cmap('RdYlBu'))
+          c=np.asarray([w.weight for w in self.samples_w0]),
+          cmap=plt.cm.get_cmap('RdYlBu_r'))
 
+        l = plt.cm.ScalarMappable(cmap=plt.cm.get_cmap('RdYlBu_r'))
+        l.set_array(
+          [w.weight for w in self.samples_w0 if np.isfinite(w.weight)])
+        cb = plt.colorbar(l)
+        cb.set_label('Sample likelihood')
+
+        (xmin, xmax) = plt.gca().get_xlim()
+        (ymin, ymax) = plt.gca().get_ylim()
+        pdf_x, pdf_y = np.meshgrid(
+          np.arange(xmin, xmax, 0.1), np.arange(ymin, ymax, 0.1))
+        pdf = mlab.bivariate_normal(
+          pdf_x, pdf_y,
+          math.sqrt(self.prior_w0.variance), math.sqrt(self.prior_w1.variance),
+          self.prior_w0.mean, self.prior_w1.mean, sigmaxy=0.0)
+        plt.contour(pdf_x, pdf_y, pdf)
+
+        # Plot posterior
+        plt.subplot(3, 1, 3)
+        plt.cla()
+        plt.title('Posterior')
+        plt.xlabel('$w_0$')
+        plt.ylabel('$w_1$')
+
+        plt.gca().set_xlim(self.fig.axes[1].get_xlim())
+        plt.gca().set_ylim(self.fig.axes[1].get_ylim())
 
         (xmin, xmax) = plt.gca().get_xlim()
         (ymin, ymax) = plt.gca().get_ylim()
 
         pdf_x, pdf_y = np.meshgrid(
           np.arange(xmin, xmax, 0.1), np.arange(ymin, ymax, 0.1))
+
         pdf = mlab.bivariate_normal(
           pdf_x, pdf_y,
-          math.sqrt(self.w0.variance), math.sqrt(self.w1.variance),
-          self.w0.mean, self.w1.mean, sigmaxy=0.0)
-        plt.contour(pdf_x, pdf_y, pdf)
-        # plt.colorbar(plt.gca())
+          math.sqrt(self.posterior_w0.variance),
+          math.sqrt(self.posterior_w1.variance),
+          self.posterior_w0.mean,
+          self.posterior_w1.mean,
+          sigmaxy=0.0)
 
+        plt.contourf(pdf_x, pdf_y, pdf)
+        cb = plt.colorbar()
+        cb.set_label('Posterior PDF')
 
         plt.show()
         plt.pause(0.01)
+        self.fig.clear()
 
 if __name__ == '__main__':
     try:
