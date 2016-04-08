@@ -1,2 +1,2 @@
 float64 weight
-float64 value
+float64[] value

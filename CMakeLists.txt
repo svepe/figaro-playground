@@ -50,15 +50,15 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  Normal2.msg
-  DataPoint2.msg
+  DataPoint.msg
   ImportanceSample.msg
+  MultivariateNormal.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  RunRegression2.srv
+  RunRegression.srv
 )
 
 ## Generate actions in the 'action' folder
