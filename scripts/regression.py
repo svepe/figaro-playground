@@ -53,7 +53,6 @@ class RegressionPlot:
 
       self.prior.mean = list(self.posterior.mean)
       self.prior.covar = list(self.posterior.covar)
-      self.prior.covar[1] = self.prior.covar[2] = 0
 
       self.posterior.mean = list(resp.posterior.mean)
       self.posterior.covar = list(resp.posterior.covar)

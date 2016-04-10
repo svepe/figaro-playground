@@ -54,10 +54,19 @@ object Regression {
 
     // Get the posterior covariance
     var covar = new Array[Double](n * n)
+
+    // First fill in the diagonal
     for(i <- 0 to n - 1) {
-      for(j <- 0 to n - 1) {
-        covar(i * n + j) = imp.expectation(w,
-          (d: List[Double]) => (d(i) - mean(i)) * (d(j) - mean(j)))
+      covar(i * n + i) = imp.expectation(w,
+          (d: List[Double]) => (d(i) - mean(i)) * (d(i) - mean(i)))
+    }
+
+    // Then fill in the rest taking into account the symmetry
+    for(i <- 1 to n - 1) {
+      for(j <- 0 to i - 1) {
+        covar(i * n + j) = imp.expectation(
+          w, (d: List[Double]) => (d(i) - mean(i)) * (d(j) - mean(j)))
+        covar(j * n + i) = covar(i * n + j)
       }
     }
     resp.getPosterior().setCovar(covar)
@@ -77,7 +86,7 @@ object Regression {
           ros_figaro.ImportanceSample._TYPE);
 
       s.setWeight(samples(i)._1)
-      s.setValue(samples(i)._2(w).asInstanceOf[List[Double]].toArray)
+      s.setValue(samples(i)._2(w).asInstanceOf[w.Value].toArray)
       resp.getSamples().add(s)
     }
 
