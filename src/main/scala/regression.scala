@@ -11,56 +11,83 @@ object Regression {
   val node = new RegressionNode(run_regression_callback)
   node.execute()
 
+  class y(x: List[Double], w: AtomicMultivariateNormal, v: Double = 5.0 ) {
+    def regress(d: List[Double]): Double = {
+      var res = d(0)
+      for (i <- 0 to x.length - 1) {
+          res += d(i + 1) * x(i)
+      }
+      res
+    }
+    val mu = Apply(w, regress)
+    val out = Normal(mu, v)
+  }
+
   def run_regression_callback(
-    req: ros_figaro.RunRegression2Request,
-    resp: ros_figaro.RunRegression2Response) {
+    req: ros_figaro.RunRegressionRequest,
+    resp: ros_figaro.RunRegressionResponse) {
 
     Universe.createNew()
 
-    val w0 = Normal(req.getPriorW0().getMean(), req.getPriorW0().getVariance());
-    val w1 = Normal(req.getPriorW1().getMean(), req.getPriorW1().getVariance());
-
-    // Specifying the Model, given the parameters.
-    class y(x1: Double, t0: AtomicNormal, t1: AtomicNormal) {
-      val mu = Apply(t0, t1, (d0: Double, d1: Double) => d0 + d1 * x1)
-      val out = Normal(mu, 5)
+    // Create MultivariateNormal from the request
+    val n = req.getPrior().getMean().length
+    var cov = scala.collection.mutable.ListBuffer.empty[List[Double]]
+    for(i <- 0 to n - 1){
+        cov += req.getPrior().getCovar().slice(i * n, (i + 1) * n).toList
     }
+    val w = MultivariateNormal(req.getPrior().getMean().toList, cov.toList)
 
-    val data_point = new y(req.getObservation().getX(), w0, w1)
+    // Add the last observation
+    val data_point = new y(req.getObservation().getX().toList, w)
     data_point.out.observe(req.getObservation().getY())
 
-    //Setting up the inference
-    val imp = Importance(5000, w0, w1)
+    // Set up and run inference
+    val imp = Importance(5000, w)
     imp.start
 
-    resp.getPosteriorW0().setMean(imp.mean(w0))
-    resp.getPosteriorW1().setMean(imp.mean(w1))
-    resp.getPosteriorW0().setVariance(imp.variance(w0))
-    resp.getPosteriorW1().setVariance(imp.variance(w1))
+    // Get the posterior mean
+    var mean =  new Array[Double](n)
+    for(i <- 0 to n - 1)  {
+      mean(i) = imp.expectation(w, (d: List[Double]) => d(i))
+    }
+    resp.getPosterior().setMean(mean)
 
-    // (Double, Map[Element[_], Any])
-    val nsamples = 1000
-    val samples = new Array[imp.Sample](nsamples)
-    // Intantiating observation objects for each training datapoint  and specfying the observations
-    for (i <- Range(0, samples.length)) {
-      samples(i) = imp.sample()
+    // Get the posterior covariance
+    var covar = new Array[Double](n * n)
+
+    // First fill in the diagonal
+    for(i <- 0 to n - 1) {
+      covar(i * n + i) = imp.expectation(w,
+          (d: List[Double]) => (d(i) - mean(i)) * (d(i) - mean(i)))
     }
 
-    resp.setSamplesW0(new java.util.ArrayList[ros_figaro.ImportanceSample])
-    resp.setSamplesW1(new java.util.ArrayList[ros_figaro.ImportanceSample])
+    // Then fill in the rest taking into account the symmetry
+    for(i <- 1 to n - 1) {
+      for(j <- 0 to i - 1) {
+        covar(i * n + j) = imp.expectation(
+          w, (d: List[Double]) => (d(i) - mean(i)) * (d(j) - mean(j)))
+        covar(j * n + i) = covar(i * n + j)
+      }
+    }
+    resp.getPosterior().setCovar(covar)
+
+    // (Double, Map[Element[_], Any])
+    val nsamples = 100
+    val samples = new Array[imp.Sample](nsamples)
+
     for (i <- Range(0, samples.length)) {
+       samples(i) = imp.sample()
+    }
 
-      val s0: ros_figaro.ImportanceSample = NodeConfiguration.newPrivate().getTopicMessageFactory().newFromType(ros_figaro.ImportanceSample._TYPE);
-      s0.setWeight(samples(i)._1)
-      s0.setValue(samples(i)._2(w0).asInstanceOf[Double])
-      resp.getSamplesW0().add(s0)
+    resp.setSamples(new java.util.ArrayList[ros_figaro.ImportanceSample])
+    for (i <- Range(0, samples.length)) {
+      val s: ros_figaro.ImportanceSample =
+        NodeConfiguration.newPrivate().getTopicMessageFactory().newFromType(
+          ros_figaro.ImportanceSample._TYPE);
 
-      val s1: ros_figaro.ImportanceSample = NodeConfiguration.newPrivate().getTopicMessageFactory().newFromType(ros_figaro.ImportanceSample._TYPE);
-      s1.setWeight(samples(i)._1)
-      s1.setValue(samples(i)._2(w1).asInstanceOf[Double])
-      resp.getSamplesW1().add(s1)
-
-      // println("weight: " + math.exp(samples(i)._1) + " w0: " + samples(i)._2(w0) + " w1: " + samples(i)._2(w1))
+      s.setWeight(samples(i)._1)
+      s.setValue(samples(i)._2(w).asInstanceOf[w.Value].toArray)
+      resp.getSamples().add(s)
     }
 
     imp.kill

@@ -1,0 +1,6 @@
+ros_figaro/MultivariateNormal prior
+ros_figaro/DataPoint observation
+---
+ros_figaro/MultivariateNormal posterior
+ros_figaro/ImportanceSample[] samples
+

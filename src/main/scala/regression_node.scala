@@ -16,7 +16,7 @@ import java.net.URI
 import org.apache.commons.logging.Log
 
 class RegressionNode(
-  run_regression_callback: (ros_figaro.RunRegression2Request, ros_figaro.RunRegression2Response) => Unit)
+  run_regression_callback: (ros_figaro.RunRegressionRequest, ros_figaro.RunRegressionResponse) => Unit)
   extends AbstractNodeMain {
   override def getDefaultNodeName(): GraphName = {
     GraphName.of("regression")
@@ -24,17 +24,17 @@ class RegressionNode(
 
   override def onStart(connectedNode: ConnectedNode) {
 
-    val run_regression_resp_builder: ServiceResponseBuilder[ros_figaro.RunRegression2Request, ros_figaro.RunRegression2Response] =
-      new ServiceResponseBuilder[ros_figaro.RunRegression2Request, ros_figaro.RunRegression2Response]() {
+    val run_regression_resp_builder: ServiceResponseBuilder[ros_figaro.RunRegressionRequest, ros_figaro.RunRegressionResponse] =
+      new ServiceResponseBuilder[ros_figaro.RunRegressionRequest, ros_figaro.RunRegressionResponse]() {
         override def build(
-          req: ros_figaro.RunRegression2Request,
-          resp: ros_figaro.RunRegression2Response) {
+          req: ros_figaro.RunRegressionRequest,
+          resp: ros_figaro.RunRegressionResponse) {
           run_regression_callback(req, resp)
         }
       }
 
     connectedNode.newServiceServer(
-      "~run", ros_figaro.RunRegression2._TYPE, run_regression_resp_builder)
+      "~run", ros_figaro.RunRegression._TYPE, run_regression_resp_builder)
   }
 
   def execute() {
