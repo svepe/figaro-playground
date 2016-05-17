@@ -11,11 +11,11 @@ object Regression {
   val node = new RegressionNode(run_regression_callback)
   node.execute()
 
-  class y(x: List[Double], w: AtomicMultivariateNormal, v: Double = 5.0 ) {
+  class y(x: List[Double], w: AtomicMultivariateNormal, v: Double = 5.0) {
     def regress(d: List[Double]): Double = {
       var res = d(0)
       for (i <- 0 to x.length - 1) {
-          res += d(i + 1) * x(i)
+        res += d(i + 1) * x(i)
       }
       res
     }
@@ -32,8 +32,8 @@ object Regression {
     // Create MultivariateNormal from the request
     val n = req.getPrior().getMean().length
     var cov = scala.collection.mutable.ListBuffer.empty[List[Double]]
-    for(i <- 0 to n - 1){
-        cov += req.getPrior().getCovar().slice(i * n, (i + 1) * n).toList
+    for (i <- 0 to n - 1) {
+      cov += req.getPrior().getCovar().slice(i * n, (i + 1) * n).toList
     }
     val w = MultivariateNormal(req.getPrior().getMean().toList, cov.toList)
 
@@ -46,8 +46,8 @@ object Regression {
     imp.start
 
     // Get the posterior mean
-    var mean =  new Array[Double](n)
-    for(i <- 0 to n - 1)  {
+    var mean = new Array[Double](n)
+    for (i <- 0 to n - 1) {
       mean(i) = imp.expectation(w, (d: List[Double]) => d(i))
     }
     resp.getPosterior().setMean(mean)
@@ -56,14 +56,14 @@ object Regression {
     var covar = new Array[Double](n * n)
 
     // First fill in the diagonal
-    for(i <- 0 to n - 1) {
+    for (i <- 0 to n - 1) {
       covar(i * n + i) = imp.expectation(w,
-          (d: List[Double]) => (d(i) - mean(i)) * (d(i) - mean(i)))
+        (d: List[Double]) => (d(i) - mean(i)) * (d(i) - mean(i)))
     }
 
     // Then fill in the rest taking into account the symmetry
-    for(i <- 1 to n - 1) {
-      for(j <- 0 to i - 1) {
+    for (i <- 1 to n - 1) {
+      for (j <- 0 to i - 1) {
         covar(i * n + j) = imp.expectation(
           w, (d: List[Double]) => (d(i) - mean(i)) * (d(j) - mean(j)))
         covar(j * n + i) = covar(i * n + j)
@@ -76,7 +76,7 @@ object Regression {
     val samples = new Array[imp.Sample](nsamples)
 
     for (i <- Range(0, samples.length)) {
-       samples(i) = imp.sample()
+      samples(i) = imp.sample()
     }
 
     resp.setSamples(new java.util.ArrayList[ros_figaro.ImportanceSample])

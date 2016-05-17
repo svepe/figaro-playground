@@ -12,9 +12,8 @@ libraryDependencies  ++= Seq(
 resolvers ++= Seq(
   // Online 
   "rosjava online" at "https://raw.githubusercontent.com/rosjava/rosjava_mvn_repo/master",
-  // System (installed ros-indigo-rosjava)
-  "rosjava system" at "file:///opt/ros/indigo/share/maven/",
-  "ros_figaro msgs" at "file://" + baseDirectory.value + "/../../devel/share/maven/"
+  // Generated rosjava messes
+  "rosjava msgs" at "file://" + baseDirectory.value + "/../../devel/share/maven/"
 )
 
 // Useful for debugging. Call with `sbt hello`
